@@ -3,11 +3,23 @@
 # description: check and monitors the disk usage reporting status by email.
 # version: 2.0
 # created by: Braier Alves
-# changed by: Joao Bernardes, 
+# changed by: Joao Bernardes
 
-#ESPACO=`df -h | awk '{print $5}' | grep -v Use | sort -nr | awk -F % '{print $1}' | head -n1`
-# variavel alterada para acomodar os valores de todas as particoes
-ESPACO=`df -P | awk '{print $5}' | grep -v Capacity | awk -F % '{print $1}'`
+
+partitionUsage=(`df -P | egrep -v Filesystem\|tmpfs | awk '{print $5}' | awk -F % '{print $1}'`)
+partitionName=(`df -P | egrep -v Filesystem\|tmpfs | awk '{print $6}'`)
+
+memUsage=`free -m | grep Mem | awk '{print $3}' | bc -l`
+memTotal=`free -m | grep Mem | awk '{print $2}' | bc -l`
+swapUsage=`free -m | grep Swap | awk '{print $3}' | bc -l`
+swapTotal=`free -m | grep Swap | awk '{print $2}' | bc -l`
+memPerc=`echo "$memUsage*100/$memTotal" | bc`
+swapPerc=`echo "$swapUsage*100/$swapTotal" | bc`
+
+cpuUsrUsage=`top -b -n1 | grep "Cpu" | awk '{print $2}' | awk -F % '{print $1}'`
+cpuSysUsage=`top -b -n1 | grep "Cpu" | awk '{print $3}' | awk -F % '{print $1}'`
+cpuNiceUsage=`top -b -n1 | grep "Cpu" | awk '{print $4}' | awk -F % '{print $1}'`
+
 ALERTA_NORMAL="O DISCO ESTA OPERANDO NORMALMENTE. \n\n `df -h ` \n\n `uname -a`"
 ALERTA_RISCO="O DISCO ESTA PRESTES A FICAR SEM ESPACO!! POR FAVOR, VERIFICAR!!  \n\n `df -h `  \n\n `uname -a`"
 ALERTA_CHEIO="O DISCO ESTA CHEIO!!! VERIFICAR COM URGENCIA!!! \n\n `df -h ` \n\n  `uname -a`"
@@ -20,15 +32,28 @@ SERVER="servidor SMTP"
 SMTPLOGIN="login"
 SMTPPASS="senha"
 
-#Alimenta o array
+#Transformar na funcao de verificacao de particoes
 count=0
-while read excpt
-  do
-    espacoArray[$count]="$ESPACO"
-    echo $espacoArray[$count]
-    count=$count+1
-done < $ESPACO
-unset count
+for i in "${partitionUsage[@]}"
+do
+  echo "A partição ${partitionName[$count]} está com $i% de seu volume ocupado."
+  count=$count+1
+done
+
+
+# Transformar na funcao de verificacao de memoria
+echo memoria uso: $memUsage MB
+echo memoria total: $memTotal MB
+echo swap uso: $swapUsage MB
+echo swap total $swapTotal MB
+echo Uso de memória: $memPerc%
+echo Uso de Swap: $swapPerc%
+
+# Transformar na função de verificação de processamento
+echo "Uso de CPU (User): $cpuUsrUsage%"
+echo "Uso de CPU (System): $cpuSysUsage%"
+echo "Uso de CPU (Nice) $cpuNiceUsage%"
+
 
 #case $ESPACO in
 
